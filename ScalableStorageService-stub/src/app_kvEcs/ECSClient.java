@@ -9,14 +9,18 @@ import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
+import app_kvServer.Manager;
+
 public class ECSClient {
 	
 	static String[] tokens;
 	static String[] returntokens;
 	static String[][] sData;
+	static String metadata;
+	private static int numberofnodes = 0;
     public static void main(String[] args) throws IOException, NoSuchAlgorithmException {
     	
-        String sCurrentLine;
+    	String sCurrentLine;
     	System.out.println(new File(".").getAbsolutePath());
     	BufferedReader br = new BufferedReader(new FileReader("example.txt"));
     	StringBuilder builder = new StringBuilder();
@@ -36,26 +40,18 @@ public class ECSClient {
     	        	metabuilder.append(",");
     	        	metabuilder.append(columns[2]);
     	        	metabuilder.append(",");
-    	        	metabuilder.append(hash(columns[1]+columns[2]).toString());
+    	        	metabuilder.append(Manager.hash(columns[1]+columns[2]).toString());
     	        	metabuilder.append("'\n'");
     	        
     	        }
     	        
-    	          System.out.println(metabuilder.toString());
-    	        
-    	        
-    	System.out.println("example.txt");
-    	    
+    	          metadata= metabuilder.toString();
+    	            	    
     	    
     }
 
 
-    private static BigInteger hash(String node) throws NoSuchAlgorithmException,UnsupportedEncodingException
-    {
-    	MessageDigest md5 = MessageDigest.getInstance("MD5");
-    	byte[] checksum = md5.digest(node.getBytes("UTF-8"));
-    	return new BigInteger(1, checksum);
-    }
+    
 
 
     
@@ -77,8 +73,24 @@ public class ECSClient {
 			switch(returnCommand){
 
 			case "start":
+				initService(2, 10, "fifo");
+				sendData("", returnCommand);
+				break;
 				
-				initService(int numberOfNodes, int cacheSize, String displacementStrategy);
+			case "stop":
+				sendData("", returnCommand);
+				
+				break;
+			
+			case "shutdown":
+				sendData("", returnCommand);
+			break;
+			case "add":
+			break;
+			case "remove":
+				break;
+			
+		}
 				
 				//Logging.FILE_LOGGER.debug("Command : connect");
 					
@@ -93,6 +105,10 @@ public class ECSClient {
 		return tokens;
 	}
     
+    private void start() {
+    	initService(2, 10, "fifo");
+    	
+ 	}
     private String getCommand() {
 		return command;
 	}
@@ -108,4 +124,35 @@ public class ECSClient {
 	public static void setsData(String[][] sData) {
 		ECSClient.sData = sData;
 	}
+	private static boolean initService(int numberOfNodes, int cacheSize, String displacementStrategy) {
+		
+		numberofnodes = numberOfNodes;
+		String[][] temp = getsData();
+		
+		for(int i=0; i<numberOfNodes; i++)
+		{
+			SSHPublicKeyAuthentication.sshConnection("localhost", Integer.parseInt(temp[i][2]), "FIFO", 10);
+		}
+		sendData(metadata, "meta");
+		
+		return true;
+	}
+	private static void sendData(String data, String command){
+		
+		String[][] temp = getsData();
+
+		for(int i=0; i < numberofnodes;i++)
+		{
+			try {
+				KVStore.connect(temp[i][1], Integer.parseInt(temp[i][2]));
+				KVStore.put(command, data);
+				KVStore.disconnect();
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+	}
+		
+		
 }
