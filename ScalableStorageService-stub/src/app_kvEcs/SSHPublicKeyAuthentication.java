@@ -1,80 +1,116 @@
 package app_kvEcs;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
-import ch.ethz.ssh2.Connection;
-import ch.ethz.ssh2.Session;
-import ch.ethz.ssh2.StreamGobbler;
+import org.apache.commons.lang3.Validate;
 
-public class SSHPublicKeyAuthentication{
+import com.jcraft.jsch.Channel;
+import com.jcraft.jsch.ChannelExec;
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Session;
+import com.svlada.ssh.logger.JschLogger;
+
+/**
+ * Helper class for building {@link Session} objects.
+ * 
+ * @author vladimir.stankovic (svlada@gmail.com)
+ *
+ */
+public class SSHPublicKeyAuthentication {
 	
-			
-	public static void sshConnection(String hostname, int port, String strategy, int cachesize){
+	final Session session;
 	
-			String ip = hostname;
-			int port1 = port;
-			String strategy1 = strategy;
-			int cachesize1 = cachesize;
-
-			File keyfile = new File("/.ssh/id_rsa"); // or "~/.ssh/id_dsa"
-			String keyfilePass = "joespass";// will be ignored if not needed
-
-			try
-			{
-				/* Create a connection instance */
-
-				Connection conn = new Connection(ip);
-
-				/* Now connect */
-
-				conn.connect();
-
-				/* Authenticate */
-
-				boolean isAuthenticated = conn.authenticateWithPublicKey("ECSAdmin", keyfile, keyfilePass);
-
-				if (isAuthenticated == false)
-					throw new IOException("Authentication failed.");
-
-				/* Create a session */
-
-				Session sess = conn.openSession();
-
-				sess.execCommand("nohup java -jar <path>/ms3-server.jar "+ port + " ERROR " );
-
-				InputStream stdout = new StreamGobbler(sess.getStdout());
-
-				BufferedReader br = new BufferedReader(new InputStreamReader(stdout));
-
-				System.out.println("Here is some information about the remote host:");
-
-				while (true)
-				{
-					String line = br.readLine();
-					if (line == null)
-						break;
-					System.out.println(line);
-				}
-
-				/* Close this session */
-				
-				sess.close();
-
-				/* Close the connection */
-
-				conn.close();
-
-			}
-			catch (IOException e)
-			{
-				e.printStackTrace(System.err);
-				System.exit(2);
-			}
-		}
+	public SSHPublicKeyAuthentication(final Builder builder) {
+		this.session = builder.jschSession;
 	}
 
+	public void execute(String command) {
+		if (session == null) {
+			throw new IllegalArgumentException("Session object is null.");
+		}
+		
+		if (command != null && command.isEmpty()) {
+			throw new IllegalArgumentException("SSH command is blank.");
+		}
+		
+		try {
+			
+			session.connect();
+			
+			Channel channel = session.openChannel("exec");
+			((ChannelExec) channel).setCommand(command);
+			((ChannelExec) channel).setPty(false);
+			
+			channel.connect();
+			
+			channel.disconnect();
+			session.disconnect();
+			
+		} catch (JSchException e) {
+			throw new RuntimeException("Error durring SSH command execution. Command: " + command);
+		}
+	}
+	
+	public static class Builder {
+		private String host;
+		private String username;
+		private int port;
+		private Path privateKeyPath;
+		private com.jcraft.jsch.Logger logger;
+		
+		private Session jschSession;
 
+		public Builder(String host, String username, int port, String path) {
+			this.host = Validate.notBlank(host);
+			this.username = Validate.notBlank(username);
+			this.port = port;
+			this.privateKeyPath = Paths.get(path);
+		}
+		
+		private void validate() {
+			if (port < 1) {
+				throw new IllegalArgumentException("Port number must start with 1.");
+			}
+		}
 
+		public SSHPublicKeyAuthentication build() {
+			validate();
+
+			if (logger != null) {
+				JSch.setLogger(new JschLogger());
+			}
+
+			JSch jsch = new JSch();
+
+			Session session = null;
+
+			try {
+
+				jsch.addIdentity(privateKeyPath.toString());
+
+				session = jsch.getSession(username, host, port);
+				session.setConfig("PreferredAuthentications", "publickey,keyboard-interactive,password");
+
+				java.util.Properties config = new java.util.Properties();
+				config.put("StrictHostKeyChecking", "no");
+
+				session.setConfig(config);
+
+			} catch (JSchException e) {
+				throw new RuntimeException("Failed to create Jsch Session object.", e);
+			}
+			
+			this.jschSession = session;
+
+			return new SSHPublicKeyAuthentication(this);
+		}
+
+		public Builder logger(com.jcraft.jsch.Logger logger) {
+			this.logger = logger;
+			return this;
+		}
+
+	}
+
+}
