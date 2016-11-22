@@ -88,7 +88,7 @@ public class ClientConnection implements Runnable {
 						if(KVServer.isServerActiveCheck())
 						{
 							processClientCmd(tokens);
-						}
+						}// send error 
 					}
 					//toLowercase
 					
@@ -170,10 +170,10 @@ public class ClientConnection implements Runnable {
 			
 			/* read next char from stream */
 			read = (byte) input.read();
-		}
-		
-		if(msgBytes == null){
-			tmp = new byte[index];
+									}
+									
+									if(msgBytes == null){
+										tmp = new byte[index];
 			System.arraycopy(bufferBytes, 0, tmp, 0, index);
 		} else {
 			tmp = new byte[msgBytes.length + index];

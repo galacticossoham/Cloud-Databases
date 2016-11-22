@@ -1,6 +1,9 @@
 package app_kvServer;
 import java.io.File;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.math.BigInteger;
+import java.security.NoSuchAlgorithmException;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -11,6 +14,7 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
+import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -22,11 +26,68 @@ public class ServerKVStore {
 	public static boolean PUT_STATUS;
 	private static Node KVPair, rootelement = null; 
 	private static NodeList KVPairs, KVPairChildren = null;
+	private static StringBuilder returnBuilder;
 	private static Document doc = null;
 	private static DocumentBuilder docBuilder = null;
 	private static String getresult = null;
 	private static String STATUS;
-	
+	private static String get(BigInteger startRange, BigInteger endRange) throws NoSuchAlgorithmException, UnsupportedEncodingException, DOMException
+	{
+			
+		try {
+			parseDatabase();
+		} catch (SAXException | IOException | ParserConfigurationException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			setStatus("GET_ERROR");
+			
+		}
+    	if(rootelement==null){
+    		getresult = "Key does not exist!!";
+    	}
+    	else{
+    		boolean novalue = true;
+    		KVPairs = rootelement.getChildNodes();
+			for(int i = 0; i < KVPairs.getLength(); i++)
+			{
+				
+				KVPair = KVPairs.item(i);
+				KVPairChildren = KVPair.getChildNodes();
+				for (int y = 0; y < KVPairChildren.getLength(); y++) 
+				{
+					//if(key.equals(KVPairChildren.item(y).getTextContent()))
+					String key =KVPairChildren.item(y).getTextContent();
+					BigInteger hashedKey=Manager.hash(key);
+					if((hashedKey.compareTo(startRange)>=0) && (hashedKey.compareTo(endRange)<0))
+					{
+						
+						String Value=KVPairChildren.item(y).getNextSibling().getTextContent();
+					
+						// found existing key
+						returnBuilder.append(key);
+						returnBuilder.append(':');
+						returnBuilder.append(Value);
+						returnBuilder.append(',');
+						novalue = false;
+						setStatus("GET_SUCCESS");
+						return returnBuilder.toString();
+						
+						
+						
+						
+					
+				}
+			}
+			
+			if(novalue){
+				getresult = "The key you are looking for does not exist, please try again!";
+				setStatus("GET_ERROR");
+			}
+
+    	}
+    	return getresult;
+    	
+    }
 	static String get(String key){
 	    	try {
 				parseDatabase();
