@@ -43,6 +43,19 @@ public class ClientConnection implements Runnable {
 	 * Initializes and starts the client connection. 
 	 * Loops until the connection is closed or aborted by the client.
 	 */
+	
+	private String getValue(String[] tokens, int startpos)
+	{
+		StringBuilder builder = new StringBuilder();
+		for (int i=startpos; i<tokens.length; i++)
+		{
+			builder.append(tokens[i]);
+		}
+		return builder.toString();
+	}
+	
+	
+	
 	public void run() {
 		try {
 			
@@ -196,9 +209,10 @@ public class ClientConnection implements Runnable {
 			if (tokens.length>2)
 			{
 				System.out.println("length greater than 2");
-				ServerKVStore.put(tokens[1],tokens[2]);//add value to storage
+		String putV=getValue(tokens, 2);
+				ServerKVStore.put(tokens[1],putV);//add value to storage
 				status=ServerKVStore.getStatus();		
-				response=tokens[1]+" "+tokens[2];
+				response=tokens[1]+" "+putV;
 				System.out.println("response : " + response);
 			}
 			else{
@@ -244,7 +258,7 @@ public class ClientConnection implements Runnable {
 		case "metadata":
 			if(tokens.length>2)
 			{
-				KVServer.setMetadata(data);
+				KVServer.setMetadata(data.substring(7));
 			}
 			break;
 		

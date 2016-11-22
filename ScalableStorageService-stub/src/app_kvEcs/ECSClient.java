@@ -8,6 +8,7 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 
 import app_kvServer.Manager;
 
@@ -17,6 +18,7 @@ public class ECSClient {
 	static String[] returntokens;
 	static String[][] sData;
 	static String metadata;
+	private String command;
 	private static int numberofnodes = 0;
     public static void main(String[] args) throws IOException, NoSuchAlgorithmException {
     	
@@ -44,9 +46,20 @@ public class ECSClient {
     	        	metabuilder.append("'\n'");
     	        
     	        }
+
+
+//Arrays.sort(sData, new Comparator() {
+    //public int compare(Object o1, Object o2) {
+        //String[] elt1 = (String[])o1;
+        //String[] elt2 = (String[])o2;
+      //  return elt1[0].compareTo(elt2[0]);
+   // }
+//});
+
+
     	        
     	          metadata= metabuilder.toString();
-    	            	    
+    	        
     	    
     }
 
@@ -73,8 +86,9 @@ public class ECSClient {
 			switch(returnCommand){
 
 			case "start":
-				initService(2, 10, "fifo");
-				sendData("", returnCommand);
+				start();
+				//initService(2, 10, "fifo");
+				//sendData("", returnCommand);
 				break;
 				
 			case "stop":
@@ -86,6 +100,7 @@ public class ECSClient {
 				sendData("", returnCommand);
 			break;
 			case "add":
+				
 			break;
 			case "remove":
 				break;
@@ -105,8 +120,18 @@ public class ECSClient {
 		return tokens;
 	}
     
-    private void start() {
-    	initService(2, 10, "fifo");
+    private static void start() {
+    	initService(2, 10, "FIFO");
+    	sendData("", "start");
+    	
+ 	}
+
+    private void stop() {
+    	sendData("", "stop");
+    
+ 	}
+    private void shutdown() {
+    	sendData("", "shutdown");
     	
  	}
     private String getCommand() {
